@@ -1,5 +1,3 @@
-// pages/[slug].tsx
-
 import Head from 'next/head';
 import { GetStaticPaths, GetStaticProps } from 'next';
 
@@ -34,56 +32,75 @@ export default function ChallengeSEO({ challenge }: { challenge: Challenge }) {
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const res = await fetch(
-    'https://bmnmboxfyxmartvuimaq.supabase.co/rest/v1/documents?select=slug',
-    {
-      headers: {
-        apikey: process.env.SUPABASE_API_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_API_KEY!}`,
-      },
-    }
-  );
+  try {
+    const res = await fetch(
+      'https://bmnmboxfyxmartvuimaq.supabase.co/rest/v1/documents?select=slug',
+      {
+        headers: {
+          apikey: process.env.SUPABASE_API_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_API_KEY!}`,
+        },
+      }
+    );
 
-  const data = await res.json();
+    const data = await res.json();
 
-  const paths = data.map((doc: { slug: string }) => ({
-    params: { slug: doc.slug },
-  }));
+    console.log("📦 Fetched slugs from Supabase:", data); // DEBUG LOG
 
-  return {
-    paths,
-    fallback: 'blocking',
-  };
+    const paths = data.map((doc: { slug: string }) => ({
+      params: { slug: doc.slug },
+    }));
+
+    return {
+      paths,
+      fallback: 'blocking',
+    };
+  } catch (error) {
+    console.error("❌ Error in getStaticPaths:", error);
+    return {
+      paths: [],
+      fallback: 'blocking',
+    };
+  }
 };
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
   const slug = params?.slug;
-  const res = await fetch(
-    `https://bmnmboxfyxmartvuimaq.supabase.co/rest/v1/documents?slug=eq.${slug}&select=slug,title,image_url`,
-    {
-      headers: {
-        apikey: process.env.SUPABASE_API_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_API_KEY!}`,
-      },
+
+  try {
+    const res = await fetch(
+      `https://bmnmboxfyxmartvuimaq.supabase.co/rest/v1/documents?slug=eq.${slug}&select=slug,title,image_url`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_API_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_API_KEY!}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      console.warn(`⚠️ No data found for slug: ${slug}`);
+      return { notFound: true };
     }
-  );
 
-  const data = await res.json();
+    const challenge = {
+      ...data[0],
+      description:
+        'Join this Mind Challenge — test what you know, learn what you don’t, and climb the peak!',
+    };
 
-  if (!data || data.length === 0) {
-    return { notFound: true };
+    return {
+      props: {
+        challenge,
+      },
+      revalidate: 300,
+    };
+  } catch (error) {
+    console.error(`❌ Error fetching challenge for slug ${slug}:`, error);
+    return {
+      notFound: true,
+    };
   }
-
-  const challenge = {
-    ...data[0],
-    description:
-      'Join this Mind Challenge — test what you know, learn what you don’t, and climb the peak!',
-  };
-
-  return {
-    props: {
-      challenge,
-    },
-    revalidate: 300, // her 5 dakikada bir güncellenebilir
-  };
 };
